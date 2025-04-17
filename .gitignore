@@ -1,0 +1,8 @@
+/.idea
+/slang-by-examples.iml
+/src/script.sc
+*.jar
+*.cmd.com
+*.native
+/*.png
+/out
