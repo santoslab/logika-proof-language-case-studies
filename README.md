@@ -52,3 +52,83 @@ The maximum of a sequence of increasing values can be computed by returning the 
     implementations without affecting the difficulty of the proofs.
     This approach is useful when compile-time and 
     run-time-verification use are combined in practice.
+
+## Setting up the Verification Environment
+
+1. **Install Sireum and IVE**
+
+    Visit the [Sireum Getting Started](https://sireum.org/getting-started/) page.
+    In the section [Both VSCodium-based and IntelliJ-based IVEs](https://sireum.org/getting-started/#latest-release-bin-ives), run the script appropriate for your platform. This will install:
+
+    - **Sireum**: A research platform that provides infrastructure for modeling, analysis, and verification of systems. In this context, Sireum includes support for Logika, a verification tool that integrates both automated and interactive proof techniques explored in the paper.
+
+    - **Integrated Verification Environment (IVE)**: A customized development environment (based on IntelliJ) pre-configured to support Logika-based verification workflows. The IVE facilitates the proof engineering process discussed in the paper, including step-by-step semi-automated reasoning and integration with SMT solvers.
+  
+1. **[Optional] Set the ``SIREUM_HOME`` environment variable and add Sireum to the path**
+
+    To run Logika from the command line, set the ``SIREUM_HOME`` environment variable to the directory where Sireum was installed.  In the following, replace ``<sireum-install-dir>`` with the actual path.
+
+    **macOS/Linux**
+
+    ```bash
+    export SIREUM_HOME=<sireum-install-dir>
+    export PATH=$SIREUM_HOME/bin:$PATH
+    ```
+
+    **Windows (Command Prompt)**
+
+    ```cmd
+    set SIREUM_HOME=<sireum-install-dir>
+    set PATH=%SIREUM_HOME%\bin;%PATH%
+    ```
+
+1. Clone this repository and change to its root directory
+
+
+    ```bash
+    git clone https://github.com/santoslab/logika-proof-language-case-studies
+    cd logika-proof-language-case-studies
+    ```
+
+## Verifying the Examples
+
+1. **Using the IVE**
+
+    - From the root directory of the repository, generate the Proyek project:
+
+      ```bash
+      sireum proyek ive .
+      ```
+
+      If you didn't add Sireum to your path then replace ``sireum`` with:
+
+      - ``$SIREUM_HOME\bin\sireum`` on macOS/Linux or 
+
+      - ``%SIREUM_HOME%\bin\sireum.bat`` on Windows.
+
+      This creates an ``.idea`` directory that allows the IVE to correctly recognize and manage the Slang/Logika project structure.
+   
+   - Launch the IVE and have it open the root directory of the repository as a project.
+   
+   - Open one of the examples worksheets listed above, and use Logika to verify the code.
+
+      For example, to verify just the [fact_it](./src/Factorial.sc#L63) method in [Factorial.sc](./src/Factorial.sc), right-click somewhere within the method body and choose ``Logika Check (Line)`` from the context menu:
+
+      ![](./figures/logika-context-menu-items.png)
+
+      To verify all the methods in the file, select ``Logika Check (All in File)`` instead.
+
+
+1. Using the Command Line
+
+  - To verify all of the methods in [Factorial.sc](./src/Factorial.sc):
+
+      ```
+      sireum logika verifier ./src/Factorial.sc
+      ```
+
+    To verify only the [fact_it](./src/Factorial.sc#L63) on line 63:
+
+    ```
+    sireum logika verifier --line 63 ./src/Factorial.sc
+    ```

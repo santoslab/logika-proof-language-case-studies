@@ -1,0 +1,19 @@
+name: CI-macos
+
+on:
+  push:
+
+jobs:
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Verify
+        run: |
+          (DIR=Sireum && export SIREUM_V=master && rm -fR $DIR && mkdir -p $DIR/bin && cd $DIR/bin && curl -JLso init.sh https://raw.githubusercontent.com/sireum/kekinian/$SIREUM_V/bin/init.sh && bash init.sh)
+          SIREUM_HOME=`pwd`/Sireum bin/verify.cmd 
+
