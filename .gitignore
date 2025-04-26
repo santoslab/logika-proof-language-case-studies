@@ -6,3 +6,4 @@
 *.native
 /*.png
 /out
+src/.DS_Store

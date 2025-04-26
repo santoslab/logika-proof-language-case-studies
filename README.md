@@ -29,12 +29,12 @@ This repository holds examples that support the work in the paper:
   - Inductive proof of list properties related to reverse, associativity, 
     etc. using rewriting and simplification to guide the proof.
   
-- **Sequence sum**
+- **Sequence sum** [Seq_Sum.sc](src/Seq_Sum.sc)
   - In Logika, sequence induction is often done using while loops.
     This example shows how recursive properties are used in such proofs 
     and how abstract properties are propagated to refinements.
   
-- **Maximum of sorted sequence**
+- **Maximum of sorted sequence** [Max_Sorted_Seq.sc](src/Max_Sorted_Seq.sc)
 The maximum of a sequence of increasing values can be computed by returning the last value of the sequence.
   - The proof of this in this development is a program that computes 
     the maximum value, confirming that the last value is the maximum.
