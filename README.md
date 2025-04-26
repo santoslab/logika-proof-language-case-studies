@@ -35,8 +35,8 @@ This repository holds examples that support the work in the paper:
     and how abstract properties are propagated to refinements.
   
 - **Maximum of sorted sequence** [Max_Sorted_Seq.sc](src/Max_Sorted_Seq.sc)
-The maximum of a sequence of increasing values can be computed by returning the last value of the sequence.
-  - The proof of this in this development is a program that computes 
+  - The maximum of a sequence of increasing values can be computed by returning the last value of the sequence.
+    The proof of this in this development is a program that computes 
     the maximum value, confirming that the last value is the maximum.
     Except for the returned maximum, the entire program is enclosed 
     in a `Spec` block. The program itself becomes a correctness 
