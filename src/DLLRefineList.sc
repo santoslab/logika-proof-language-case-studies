@@ -95,13 +95,19 @@ object List {
     (l: @induct) match {
       case Cons(value, next) =>
         Deduce(
-          1 (All{ (acc: Z) => acc + next.length == next.length_acc(acc) }) by Premise,
-          2 (Cons(value, next).length == 1 + next.length) by Simpl,
+          1 (All{ (acc: Z) => acc + next.length == next.length_acc(acc) })
+            by Premise,
+          2 (Cons(value, next).length == 1 + next.length)
+            by Simpl,
           3 Let((acc: Z) => SubProof(
-            4 (Cons(value, next).length_acc(acc) == next.length_acc(1 + acc)) by Simpl,
-            5 (1 + acc + next.length == next.length_acc(1 + acc)) by Auto and (1, 4),
-            6 (1 + acc + next.length == acc + Cons(value, next).length) by Auto and (2, 5),
-            7 (acc + Cons(value, next).length == Cons(value, next).length_acc(acc)) by Simpl
+            4 (Cons(value, next).length_acc(acc) == next.length_acc(1 + acc))
+              by Simpl,
+            5 (1 + acc + next.length == next.length_acc(1 + acc))
+              by Auto and (1, 4),
+            6 (1 + acc + next.length == acc + Cons(value, next).length)
+              by Auto and (2, 5),
+            7 (acc + Cons(value, next).length == Cons(value, next).length_acc(acc))
+              by Simpl
           ))
         )
         return
@@ -112,28 +118,29 @@ object List {
 
   @pure def length_impl_with_acc_sum[T](l: List[T]): Unit = {
     Contract(
-      Ensures(All{(acc: Z, bcc: Z) => bcc + l.length_acc(acc) == l.length_acc(bcc + acc)})
+      Ensures(All{ (acc: Z) => All{ (bcc: Z) => bcc + l.length_acc(acc) == l.length_acc(bcc + acc)}})
     )
     (l: @induct) match {
       case Cons(value, next) =>
         Deduce(
-          1 (All{(acc: Z, bcc: Z) => bcc + next.length_acc(acc) == next.length_acc(bcc + acc)}) by Premise,
+          1 (All{ (acc: Z) => All{ (bcc: Z) => bcc + next.length_acc(acc) == next.length_acc(bcc + acc) }}) by Premise,
           2 (Cons(value, next).length == 1 + next.length) by Simpl,
           3 Let((acc: Z) => SubProof(
             4 Let((bcc: Z) => SubProof(
               5 (Cons(value, next).length_acc(bcc + acc) == next.length_acc(1 + (bcc + acc))) by Simpl,
-              6 (All{(bcc: Z) => bcc + next.length_acc(1 + acc) == next.length_acc(bcc + (1 + acc))}) by AllE[Z](1),
+              6 (All{ (bcc: Z) => bcc + next.length_acc(1 + acc) == next.length_acc(bcc + (1 + acc))}) by AllE[Z](1),
               7 (bcc + next.length_acc(1 + acc) == next.length_acc(bcc + (1 + acc))) by AllE[Z](6),
               8 (bcc + Cons(value, next).length_acc(acc) == bcc + next.length_acc(1 + acc)) by Simpl,
               9 (bcc + Cons(value, next).length_acc(acc) == Cons(value, next).length_acc(bcc + acc)) by Auto,
               10 (bcc + l.length_acc(acc) == l.length_acc(bcc + acc)) by Auto
             )),
-            11 (All{(bcc: Z) => bcc + l.length_acc(acc) == l.length_acc(bcc + acc)}) by AllI[Z](4)
+            11 (All{ (bcc: Z) => bcc + l.length_acc(acc) == l.length_acc(bcc + acc)}) by AllI[Z](4)
           )),
-          12 (All{(acc: Z, bcc: Z) => bcc + l.length_acc(acc) == l.length_acc(bcc + acc)}) by AllI[Z](3)
+          12 (All{ (acc: Z) => All{ (bcc: Z) => bcc + l.length_acc(acc) == l.length_acc(bcc + acc)}}) by AllI[Z](3)
         )
         return
-      case Nil() => return
+      case Nil() =>
+        return
     }
   }
 
