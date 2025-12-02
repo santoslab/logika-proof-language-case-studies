@@ -1,6 +1,7 @@
 // #Sireum #Logika
 import org.sireum._
 import org.sireum.justification._
+import org.sireum.justification.natded.prop._
 import org.sireum.justification.natded.pred._
 
 // List trait with some basic list functionality implemented.
@@ -45,16 +46,20 @@ object List {
         Deduce(
           1(All { n: Z => n > 0 ___>: next.tl.drop(n) == next.drop(n + 1) }) by Premise,
           2 Let ((k: Z) => SubProof(
-            3 Assume (k > 0),
-            4(l ≡ Cons(value, next)) by Premise,
-            5(k > 0 ___>: next.tl.drop(k - 1) == next.drop(k)) by Auto and 1, // This should be AllE
-            6(l.tl.drop(k) == next.tl.drop(k - 1)) by Auto,
-            7(l.drop(k + 1) == l.tl.drop(k)) by Auto,
-            8(k > 0 ___>: l.tl.drop(k) == l.drop(k + 1)) by Auto
+            3 SubProof(
+              4 Assume (k > 0),
+              5(l ≡ Cons(value, next)) by Premise,
+              6(k - 1 > 0 ___>: next.tl.drop(k - 1) == next.drop(k - 1 + 1)) by AllE[Z](1),
+              7(k > 0 ___>: next.drop(k) == next.tl.drop(k - 1)) by Auto and (4, 6),
+              8(next.drop(k) == next.tl.drop(k - 1)) by SImplyE(7, 4),
+              9(l.tl.drop(k) == next.tl.drop(k - 1)) by Auto and (5, 8),
+              10(l.tl.drop(k) == l.drop(k + 1)) by Auto
+            ),
+            11(k > 0 ___>: l.tl.drop(k) == l.drop(k + 1)) by SImplyI(3)
           )),
-          9(All { n: Z => n > 0 ___>: l.tl.drop(n) == l.drop(n + 1) }) by AllI[Z](2)
+          12(All { n: Z => n > 0 ___>: l.tl.drop(n) == l.drop(n + 1) }) by AllI[Z](2)
         )
-        Deduce(|-(All { n: Z => l.tl.drop(n) == l.drop(n + 1) }))
+        Deduce(|-(All { n: Z => n > 0 ___>: l.tl.drop(n) == l.drop(n + 1) }))
     }
   }
 
