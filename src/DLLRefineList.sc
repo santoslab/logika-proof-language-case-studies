@@ -16,22 +16,28 @@ import org.sireum.justification.natded.pred._
     case _ => acc
   }
 
-  @strictpure def hd: T = this match {
+  @abs def hd: T = this match {
     case List.Cons(value, _) => value
-    case _ => halt("Trying to access hd on an empty list")
+    case _ => halt("hd")
   }
 
-  @strictpure def tl: List[T] = this match {
+  @abs def tl: List[T] = this match {
     case List.Cons(_, next) => next
-    case _ => List.Nil()
+    case _ => List.empty
   }
 
-  @strictpure def ++(l2: List[T]): List[T] = this match {
+  @abs def nth(n: Z): T = this match {
+    case List.Cons(_, next) if n > 0 => next.nth(n - 1)
+    case List.Cons(value, next) if n == 0 => value
+    case _ => halt("nth")
+  }
+
+  @abs def ++(l2: List[T]): List[T] = this match {
     case List.Cons(value, next) => List.Cons(value, next ++ l2)
     case _ => l2
   }
 
-  @strictpure def drop(n: Z): List[T] = if (n > 0) {
+  @abs def drop(n: Z): List[T] = if (n > 0) {
     this match {
       case List.Cons(_, next) => next.drop(n - 1)
       case _ => List.empty
@@ -40,7 +46,7 @@ import org.sireum.justification.natded.pred._
     this
   }
 
-  @strictpure def take(n: Z): List[T] = if (n > 0) {
+  @abs def take(n: Z): List[T] = if (n > 0) {
     this match {
       case List.Cons(value, next) => List.Cons(value, next.take(n - 1))
       case _ => List.empty
@@ -63,17 +69,70 @@ object List {
 
   @datatype class Cons[T](val value: T, val next: List[T]) extends List[T]
 
-//  @pure def distinct[T](value: T, next: List[T]): Unit = {
-//    Contract(
-//      Ensures(List.Nil[T]() != List.Cons[T](value, next))
-//    )
-//    assume(Nil[T]() != Cons[T](value, next))
-//  }
-
   @pure def distinctNilCons[T](list: List[T], value: T, next: List[T]): Unit = {
     Contract(
       Requires(list == Nil[T]()),
       Ensures(list != Cons[T](value, next))
+    )
+  }
+
+  @pure def hd_notempty[T](value: T, next: List[T]): Unit = {
+    Contract(
+      Ensures(Cons[T](value, next).hd === value)
+    )
+  }
+
+  @pure def nth_base[T](value: T, next: List[T]): Unit = {
+    Contract(
+      Ensures(Cons[T](value, next).nth(0) === value)
+    )
+  }
+
+  @pure def nth_step[T](value: T, next: List[T], n: Z): Unit = {
+    Contract(
+      Requires(n > 0),
+      Ensures(Cons[T](value, next).nth(n) === next.nth(n - 1))
+    )
+  }
+
+  @pure def length_Nil[T](): Unit = {
+    Contract(
+      Ensures(Nil[T]().length == 0)
+    )
+  }
+
+  @pure def length_cons[T](value: T, next: List[T]): Unit = {
+    Contract(
+      Ensures(Cons(value, next).length == 1 + next.length)
+    )
+  }
+
+  @pure def length_acc_Nil[T](acc: Z): Unit = {
+    Contract(
+      Ensures(Nil[T]().length_acc(acc) == acc)
+    )
+  }
+
+  @pure def length_acc_cons[T](value: T, next: List[T], acc: Z): Unit = {
+    Contract(
+      Ensures(Cons(value, next).length_acc(acc) == next.length_acc(1 + acc))
+    )
+  }
+
+  @pure def length_bound[T](list: List[T]): Unit = {
+    Contract(
+      Ensures(list.length >= 0)
+    )
+    (list: @induct) match {
+      case Nil() =>
+      case Cons(value, next) =>
+    }
+  }
+
+  @pure def length_decr_tl[T](list: List[T]): Unit = {
+    Contract(
+      Requires(list.length > 0),
+      Ensures(list.tl.length == list.length - 1)
     )
   }
 
@@ -83,6 +142,137 @@ object List {
       Ensures(list != Nil[T]())
     )
   }
+
+  @pure def drop_1_tl[T](list: List[T]): Unit = {
+    Contract(
+      Ensures(list.tl === list.drop(1))
+    )
+  }
+
+  @pure def drop_alltl[T](l: List[T]): Unit = {
+    Contract(
+      Ensures(All{ n: Z => n >= 0 ___>: l.tl.drop(n) == l.drop(n + 1) })
+    )
+    (l: @induct) match {
+      case Nil() =>
+      case Cons(value, next) =>
+        Deduce(
+          1 (All{ n: Z => n >= 0 ___>: next.tl.drop(n) == next.drop(n + 1) }) by Premise,
+          2 Let((k: Z) => SubProof(
+            3 (l ≡ Cons(value, next)) by Premise,
+            4 (k > 0 ___>: next.tl.drop(k - 1) == next.drop(k)) by Auto and 1,
+            5 (k > 0 ___>: l.tl.drop(k) == next.tl.drop(k - 1)) by Auto,
+            6 (k >= 0 ___>: l.drop(k + 1) == l.tl.drop(k)) by Auto,
+            7 (k >= 0 ___>: l.tl.drop(k) == l.drop(k + 1)) by Auto
+          )),
+          8 (All{ n: Z => n >= 0 ___>: l.tl.drop(n) == l.drop(n + 1) }) by AllI[Z](2)
+        )
+    }
+  }
+
+  @pure def drop_additive_all[T](list: List[T], n: Z): Unit = {
+    Contract(
+      Requires(n >= 0),
+      Ensures(All { m: Z => m >= 0 ___>: list.drop(m).drop(n) === list.drop(m + n) })
+    )
+    (list: @induct) match {
+      case Nil() => Deduce(|- (All { m: Z => m >= 0 ___>: list.drop(m).drop(n) === list.drop(m + n) }))
+      case Cons(value, next) =>
+        Deduce(
+          1 (All { m: Z => m >= 0 ___>: next.drop(m).drop(n) === next.drop(m + n) }) by Premise,
+          2 Let((k: Z) => SubProof(
+            3 (list ≡ Cons(value, next)) by Premise,
+            4 (k > 0 ___>: next.drop(k - 1).drop(n) === next.drop(k - 1 + n)) by Auto and 1,
+            5 (k > 0 ___>: list.drop(k).drop(n) === list.drop(k - 1 + 1 + n)) by Auto,
+            6 (k > 0 ___>: list.drop(k).drop(n) === list.drop(k + n)) by Auto,
+            7 (list.drop(0) === list) by Auto,
+            8 (list.drop(0).drop(n) === list.drop(n)) by Simpl and 7,
+            9 (k >= 0 ___>: list.drop(k).drop(n) === list.drop(k + n)) by Auto
+          )),
+          10 (All { m: Z => m >= 0 ___>: list.drop(m).drop(n) === list.drop(m + n) }) by AllI[Z](2)
+        )
+    }
+  }
+
+  @pure def drop_additive[T](list: List[T], m: Z, n: Z): Unit = {
+    Contract(
+      Requires(m >= 0, n >= 0),
+      Ensures(list.drop(m).drop(n) === list.drop(m + n))
+    )
+    drop_additive_all(list, n)
+  }
+
+  @pure def drop_tl_swap[T](list: List[T], n: Z): Unit = {
+    Contract(
+      Requires(n >= 0),
+      Ensures(list.tl.drop(n) === list.drop(n).tl)
+    )
+    (list: @induct) match {
+      case Nil() => Deduce(|- (list.tl.drop(n) == list.drop(n).tl))
+      case Cons(value, next) =>
+        drop_1_tl(list)
+        Deduce(
+          1 (list.tl === list.drop(1)) by drop_1_tl(list),
+          2 (list.tl.drop(n) === list.drop(1).drop(n)) by Simpl,
+          3 (list.drop(n).tl === list.drop(n).drop(1)) by drop_1_tl(list.drop(n)),
+          4 (1 >= 0) by Algebra,
+          5 (n >= 0) by Premise,
+          6 (list.drop(1).drop(n) === list.drop(1 + n)) by drop_additive(list, 1, n),
+          7 (list.drop(n).drop(1) === list.drop(n + 1)) by drop_additive(list, n, 1),
+          8 (list.drop(1 + n) === list.drop(n + 1)) by Auto,
+          9 (list.tl.drop(n) === list.drop(n).tl) by Auto
+        )
+    }
+  }
+
+  @pure def drop_tl[T](list: List[T], n: Z): Unit = {
+    Contract(
+      Requires(n >= 0),
+      Ensures(list.tl.drop(n) == list.drop(n + 1))
+    )
+    drop_alltl(list)
+  }
+
+  @pure def drop_tl_other[T](l: List[T], m: List[T], n: Z): Unit = {
+    Contract(
+      Requires(l === m.drop(n), n >= 0),
+      Ensures(l.tl === m.drop(n + 1))
+    )
+    Deduce(
+      1 (l.tl === m.drop(n).tl) by Auto,
+      2 (n >= 0) by Premise,
+      3 (m.tl.drop(n) === m.drop(n).tl) by drop_tl_swap(m, n)
+    )
+  }
+
+  @pure def drop_hd_nth_all[T](l: List[T]): Unit = {
+    Contract(
+      Ensures(All { n: Z => n >= 0 & n < l.length ___>: l.drop(n).hd == l.nth(n) })
+    )
+    (l: @induct) match {
+      case Nil() =>
+        //Deduce(|- )
+        Deduce(|- (All { n: Z => n >= 0 & n < l.length ___>: l.drop(n).hd == l.nth(n) }))
+      case Cons(value, next) =>
+        Deduce(|- (All { n: Z => n >= 0 & n < l.length ___>: l.drop(n).hd == l.nth(n) }))
+    }
+  }
+
+  @pure def drop_hd_nth[T](l: List[T], n: Z): Unit = {
+    Contract(
+      Requires(n >= 0, n < l.length),
+      Ensures(l.drop(n).hd == l.nth(n))
+    )
+    drop_hd_nth_all(l)
+  }
+
+//  @pure def drop_tl_hd_nth[T](l: List[T], n: Z): Unit = {
+//    Contract(
+//      Requires(n >= 0, n < l.length, l.drop(n).hd == l.nth(n)),
+//      Ensures(l.tl.drop(n).hd == l.nth(n + 1))
+//    )
+//    drop_hd_nth_all(l)
+//  }
 
   @strictpure def make[T](value: T): List[T] = Cons(value, Nil())
 
@@ -94,11 +284,12 @@ object List {
     )
     (l: @induct) match {
       case Cons(value, next) =>
+        length_cons(value, next)
         Deduce(
           1 (All{ (acc: Z) => acc + next.length == next.length_acc(acc) })
             by Premise,
           2 (Cons(value, next).length == 1 + next.length)
-            by Simpl,
+            by Premise,
           3 Let((acc: Z) => SubProof(
             4 (Cons(value, next).length_acc(acc) == next.length_acc(1 + acc))
               by Simpl,
@@ -194,13 +385,25 @@ object DLLPool {
   }
 
   @strictpure def reach[E](pool: PoolMem[E], p: PoolPtr, q: PoolPtr): B =
-    if (p == q) {
-      true
-    } else if (isValidPointer(pool, p)) {
-      reach(pool, pool(p).right, q)
+    if (isValidPointer(pool, p)) {
+      if (pool(p).right == q) {
+        true
+      } else {
+        reach(pool, pool(p).right, q)
+      }
     } else {
       false
     }
+
+  @abs def acyclic[E](pool: PoolMem[E], p: PoolPtr): B = {
+    All(pool.indices)(q => reach(pool, p, q) ___>: p != q)
+  }
+
+  @strictpure def reach_valid[E](pool: PoolMem[E], p: PoolPtr, q: PoolPtr): B =
+    reach(pool, p, q) ___>: isValidPointer(pool, q)
+
+  @strictpure def reach_used[E](pool: PoolMem[E], p: PoolPtr, q: PoolPtr): B =
+    reach(pool, p, q) & reach_valid(pool, p, q) ___>: pool(q).used == true
 
   @strictpure def count_free_rec[E](pool: PoolMem[E], p: PoolPtr): Z =
     if (isValidPointer(pool, p)) {
@@ -213,9 +416,8 @@ object DLLPool {
       0
     }
 
-  @strictpure def count_free[E](pool: PoolMem[E]): Z = {
+  @abs def count_free[E](pool: PoolMem[E]): Z =
     count_free_rec(pool, 0)
-  }
 
 
   @strictpure def count_free_until[E](pool: PoolMem[E], p: PoolPtr, q: PoolPtr): Z =
@@ -403,12 +605,12 @@ object DLLPool {
     )
     var k: PoolPtr = 0
     val f: Z = count_free(pool)
-    while (k < pool.size) {
+    while (true) {
       Invariant(
         Modifies(k),
+        k < pool.size,
         count_free_rec(pool, k) == f
       )
-      Deduce(|- (isValidPointer(pool, k)))
       if (isValidPointer(pool, k)) {
         if (pool(k).used) {
         } else {
@@ -417,17 +619,6 @@ object DLLPool {
       } else {
       }
       k = k + 1
-    }
-  }
-
-  @pure def count_free_space_cond[E](pool: PoolMem[E]): Unit = {
-    Contract(
-      Ensures(count_free(pool) > 0 ___>: Exists(pool.indices)(k => !pool(k).used))
-    )
-    if (count_free(pool) > 0) {
-      Spec {
-        count_free_space(pool)
-      }
     }
   }
 
@@ -484,6 +675,59 @@ object DLLPool {
     count_free_until_size(qool, 0)
   }
 
+  @pure def count_free_on_dealloc[E](pool: PoolMem[E], qool: PoolMem[E], p: PoolPtr): Unit = {
+    Contract(
+      Requires(
+        pool.isInBound(p),
+        pool.size == qool.size,
+        All(pool.indices)(q => q != p ___>: pool(q) == qool(q)),
+        pool(p).used,
+        !qool(p).used
+      ),
+      Ensures(count_free(qool) == count_free(pool) + 1)
+    )
+    var k = p
+    while (0 < k) {
+      Invariant(
+        Modifies(k),
+        0 <= k, k <= p,
+        count_free_until(pool, k, p) == count_free_until(qool, k, p)
+      )
+      k = k - 1
+    }
+    var l: PoolPtr = pool.size
+    while (p + 1 < l) {
+      Invariant(
+        Modifies(l),
+        p + 1 <= l, l <= pool.size,
+        count_free_until(pool, l, pool.size) == count_free_until(qool, l, pool.size)
+      )
+      l = l - 1
+    }
+    Deduce( // Stock keeping:
+      1 (count_free_until(pool, 0, p) == count_free_until(qool, 0, p)) by Auto,
+      2 (count_free_until(pool, p + 1, pool.size) == count_free_until(qool, p + 1, pool.size)) by Auto,
+      3 (count_free_until(pool, p, p + 1) == 0) by Auto,
+      4 (count_free_until(qool, p, p + 1) == 1) by Auto
+    )
+    count_free_until_split(pool, 0, p, p + 1)
+    count_free_until_split(pool, 0, p + 1, pool.size)
+    Deduce(|- ( // We have:
+      count_free_until(pool, 0, pool.size) ==
+        count_free_until(pool, 0, p) +
+          count_free_until(pool, p, p + 1) +
+          count_free_until(pool, p + 1, pool.size)))
+    count_free_until_split(qool, 0, p, p + 1)
+    count_free_until_split(qool, 0, p + 1, pool.size)
+    Deduce(|- ( // We have:
+      count_free_until(qool, 0, pool.size) ==
+        count_free_until(qool, 0, p) +
+          count_free_until(qool, p, p + 1) +
+          count_free_until(qool, p + 1, pool.size)))
+    count_free_until_size(pool, 0)
+    count_free_until_size(qool, 0)
+  }
+
   @abs def asList[E](pool: PoolMem[E], head: PoolPtr): List[E] =
     if (isValidPointer(pool, head)) {
       Cons(pool(head).elem, asList(pool, pool(head).right))
@@ -495,11 +739,25 @@ object DLLPool {
   @pure def asList_Cons[E](pool: PoolMem[E], head: PoolPtr): Unit = {
     Contract(
       Requires(isValidPointer(pool, head)),
-      Ensures(asList(pool, head) == Cons(pool(head).elem, asList(pool, pool(head).right)))
+      Ensures(asList(pool, head) === Cons(pool(head).elem, asList(pool, pool(head).right)))
     )
     Deduce(
       1 (isValidPointer(pool, head)) by Auto,
-      2 (asList(pool, head) == Cons[E](pool(head).elem, asList(pool, pool(head).right))) by RSimpl(RS(asList _))
+      2 (asList(pool, head) === Cons[E](pool(head).elem, asList(pool, pool(head).right))) by RSimpl(RS(asList _))
+    )
+  }
+
+  @pure def asList_Head[E](pool: PoolMem[E], head: PoolPtr, list: List[E]): Unit = {
+    Contract(
+      Requires(asList(pool, head) === list, isValidPointer(pool, head)),
+      Ensures(list.hd === pool(head).elem)
+    )
+    hd_notempty(pool(head).elem, asList(pool, pool(head).right))
+    Deduce(
+      1 (asList(pool, head) === Cons(pool(head).elem, asList(pool, pool(head).right))) by Auto,
+      2 (asList(pool, head) === list) by Premise,
+      3 (list === Cons(pool(head).elem, asList(pool, pool(head).right))) by Subst_<(2, 1),
+      4 (list.hd === Cons(pool(head).elem, asList(pool, pool(head).right)).hd) by Simpl
     )
   }
 
@@ -509,6 +767,19 @@ object DLLPool {
       Ensures(asList(pool, head) == Nil[E]())
     )
   }
+
+//  @pure def asList_head[E](pool: PoolMem[E], p: PoolPtr, list: List[E]): Unit = {
+//    Contract(
+//      Requires(list != empty[E], isValidPointer(pool, p), asList(pool, p) == list),
+//      Ensures(pool(p).elem == list.hd)
+//    )
+//    hd_notempty(pool(p).elem, asList(pool, pool(p).right))
+//    Deduce(
+//      1 (isValidPointer(pool, p)) by Premise,
+//      2 (asList(pool, p) == Cons(pool(p).elem, asList(pool, pool(p).right))) by asList_Cons(pool, p),
+//      3 (Cons(pool(p).elem, asList(pool, pool(p).right)).hd == pool(p).elem) by Premise
+//    )
+//  }
 
   // Programmatic proof by contradiction
   @pure def asList_Nil_inverse[E](pool: PoolMem[E], head: PoolPtr): Unit = {
@@ -530,6 +801,45 @@ object DLLPool {
     asList(pool, head) === list
   }
 
+  @pure def refines_list_head[E](pool: PoolMem[E], head: PoolPtr, list: List[E]): Unit = {
+    Contract(
+      Requires(refinesProp(pool, head, list), isValidPointer(pool, head)),
+      Ensures(list.hd === pool(head).elem)
+    )
+    asList_Head(pool, head, list)
+  }
+
+  @pure def refines_nth_head[E](pool: PoolMem[E], head: PoolPtr, list: List[E]): Unit = {
+    Contract(
+      Requires(isValidPointer(pool, head), refinesProp(pool, head, list), list.length > 0),
+      Ensures(list.nth(0) == pool(head).elem)
+    )
+    Spec { nth_base(pool(head).elem, asList(pool, pool(head).right)) }
+    Deduce(
+      1 (isValidPointer(pool, head)) by Premise,
+      2 (refinesProp(pool, head, list)) by Premise,
+      3 (list.length > 0) by Premise,
+      4 (asList(pool, head) === list) by Rewrite(RS(refinesProp _), 2),
+      5 (Cons(pool(head).elem, asList(pool, pool(head).right)) === list) by Rewrite(RS(asList _), 4)
+    )
+  }
+
+
+  @pure def refines_nth_tail[E](pool: PoolMem[E], head: PoolPtr, list: List[E], n: Z): Unit = {
+    Contract(
+      Requires(isValidPointer(pool, head), refinesProp(pool, head, list), list.length > 0, n > 0),
+      Ensures(list.nth(n) === asList(pool, pool(head).right).nth(n - 1))
+    )
+    Spec { nth_step(pool(head).elem, asList(pool, pool(head).right), n) }
+    Deduce(
+      1 (isValidPointer(pool, head)) by Premise,
+      2 (refinesProp(pool, head, list)) by Premise,
+      3 (list.length > 0) by Premise,
+      4 (asList(pool, head) === list) by Rewrite(RS(refinesProp _), 2),
+      5 (Cons(pool(head).elem, asList(pool, pool(head).right)) === list) by Rewrite(RS(asList _), 4)
+    )
+  }
+
   @pure def refines_p_not_Nil[E](pool: PoolMem[E], p: PoolPtr, l: List[E]): Unit = {
     Contract(
       Requires(isValidPointer(pool, p), refinesProp(pool, p, l)),
@@ -542,6 +852,13 @@ object DLLPool {
       4 (asList(pool, p) == l) by Auto and 3,
       5 (asList(pool, p) == Cons[E](pool(p).elem, asList(pool, pool(p).right))) by RSimpl(RS(asList _)) and (1, 2),
       6 (Cons[E](pool(p).elem, asList(pool, pool(p).right)) == l) by Subst_<(5, 4)
+    )
+  }
+
+  @pure def refines_valid_pointer[E](pool: PoolMem[E], p: PoolPtr, l: List[E]): Unit = {
+    Contract(
+      Requires(isValidPointer(pool, p), refinesProp(pool, p, l)),
+      Ensures()
     )
   }
 
@@ -566,7 +883,9 @@ object DLLPool {
     }
   }
 
-  @pure def listCoincidence[E](pool: PoolMem[E], qool: PoolMem[E], h: PoolPtr): Unit = {
+  @pure
+  @tailrec
+  def listCoincidence[E](pool: PoolMem[E], qool: PoolMem[E], h: PoolPtr): Unit = {
     Contract(
       Requires(
         pool.size == qool.size,
@@ -625,8 +944,11 @@ object DLLPool {
     )
   }
 
-  @abs def freeNodesProp[E](pool: PoolMem[E], free: Z): B = {
+  @abs def freeNodesProp[E](pool: PoolMem[E], free: Z): B =
     free == count_free(pool)
+
+  @abs def reachAcyclicProp[E](pool: PoolMem[E], head: PoolPtr): B = {
+    All(pool.indices)(i => reach(pool, head, i) ___>: All(pool.indices)(j => reach(pool, i, j) ___>: (i != j)))
   }
 
   @abs def poolRightProp[E](pool: PoolMem[E]): B = {
@@ -745,15 +1067,6 @@ import DLLPool._
     maxSz == pool.size
   )
 
-//  @abs def poolChildLeftProp(pool: MSZ[Node[E]]): B = {
-//    All(pool.indices)(i => isPointer(pool, pool(i).left))
-//  }
-//
-//  @spec def poolChildLeft = Invariant(
-//    poolChildLeftProp(pool)
-//  )
-//
-
   @spec def poolRight = Invariant(
     poolRightProp(pool)
   )
@@ -812,43 +1125,13 @@ import DLLPool._
       pool(p) = defaultNode
       p = p + 1
     }
-    count_free_init()
+    Spec { count_free_init() }
   }
 
   @pure def isEmpty: B = {
     Contract(Ensures(Res == (head == Null & tail == Null)))
     return head == Null
   }
-
-//  @pure def countR(p: Z, acc: Z): Z = {
-//    Contract(
-//      Requires(
-//        refinesProp(pool, p, list),
-//        isPointer(pool, p)),
-//      Ensures(
-//        Res == list.length_acc(acc)
-//      )
-//    )
-//    if (isLeaf(p)) {
-//      return acc
-//    } else {
-//      val n: Node[E] = pool(p)
-//      assume(isPointer(pool, n.right))
-//      val r = countR(n.right, acc + 1)
-//      Deduce(
-//        |- (r > acc),
-//        |- (isValidPointer(pool, p)))
-//      return r
-//      // SHA: The if-branch is redundant
-//      //       Deduce(|- (p != n.right))
-////      if (p == n.right) {
-////        Deduce(|- (false))
-////        return 0
-////      } else {
-////        return countR(n.right, acc + 1)
-////      }
-//    }
-//  }
 
   @pure def sizeOf: Z = {
     Contract(
@@ -876,50 +1159,36 @@ import DLLPool._
 
   def findFreeNode(): PoolPtr = {
     Contract(
-      Requires(refinesProp(pool, head, list)),
-      Ensures(
-        isPointer(pool, Res),
-        isValidPointer(pool, Res) ___>: !pool(Res[Z]).used,
-        free > 0 ___>: isValidPointer(pool, Res),
-        refinesProp(pool, head, list)
+      Case(
+        Requires(refinesProp(pool, head, list), free > 0),
+        Ensures(
+          isValidPointer(pool, Res), !pool(Res[Z]).used,
+          refinesProp(pool, head, list)
+        )
+      ),
+      Case(
+        Requires(refinesProp(pool, head, list), free <= 0),
+        Ensures(
+          isPointer(pool, Res), !isValidPointer(pool, Res),
+          refinesProp(pool, head, list)
+        )
       )
     )
-    Spec { count_free_space_cond(pool) }
+    if (free <= 0) {
+      return Null
+    }
+    Spec { count_free_space(pool) }
     var p: PoolPtr = 0
-    while ((p < pool.size) && pool(p).used) { // changed test for defaultNode against .used
+    while (pool(p).used) { // changed test for defaultNode against .used
       Invariant(
         Modifies(p),
-        0 <= p, p <= pool.size,
-        free > 0 ___>: Exists(p until pool.size)(k => !pool(k).used)
+        0 <= p, p < pool.size,
+        Exists(p until pool.size)(k => !pool(k).used)
       )
       p = p + 1
     }
-    if (p == pool.size) {
-      p = Null
-    }
     return p
   }
-
-//  def findIndexR(elem: E, p: Z): Z = {
-//    Contract(
-//      Requires(isPointer(pool, p))
-//    )
-//    if (isLeaf(p)) {
-//      return Null
-//    } else {
-//      pool(p) match {
-//        case Node(_, F, _, _) => return Null
-//        case Node(e, T, _, _) if ord.equiv(elem, e) => return p
-//        case Node(_, T, _, r) =>
-//          assume(isPointer(pool, r))
-//          return findIndexR(elem, r)
-//      }
-//    }
-//  }
-//
-//  def findR(e: E): Z = {
-//    return findIndexR(e, head)
-//  }
 
 // SHA: needed to swap initPool with the two assignments because initPool
   // expects the invariant to be true initially. One could also consider to
@@ -934,34 +1203,70 @@ import DLLPool._
     Spec { list = Nil() }
   }
 
-//  def nthIndexR(n: Z, p: Z): Z = {
-//    Contract(
-//      Requires(isPointer(pool, p)),
-//      Ensures(isPointer(pool, Res))
-//    )
-//    if ((n < 0) || isLeaf(p)) {
-//      return Null
-//    } else {
-//      pool(p) match {
-//        case Node(_, F, _, _) => return Null
-//        case Node(_, T, _, _) if (n == 0) => return p
-//        case Node(_, T, _, r) =>
-//          assume(isPointer(pool, r))
-//          return nthIndexR(n - 1, r)
-//      }
-//    }
-//    return Null;   // C transpiler complains unless this is present
-//  }
-//
-//  def nth(n: Z): Option[E] = {
-//    val i: Z = nthIndexR(n, head)
-//    if (i < 0) {
-//      return None[E]()
-//    } else {
-//      val nd: Node[E] = pool(i)
-//      return Some(nd.elem)
-//    }
-//  }
+  def nth(n: Z): Option[E] = {
+    Contract(
+      Case(
+        Requires(refinesProp(pool, head, list), 0 <= n, n < sizeOf),
+        Ensures(
+          refinesProp(pool, head, list),
+          Res == Some(list.nth(n)))
+      ),
+      Case(
+        Requires(refinesProp(pool, head, list), n < 0),
+        Ensures(
+          refinesProp(pool, head, list),
+          Res == None[E]())
+      ),
+      Case(
+        Requires(refinesProp(pool, head, list), n >= sizeOf),
+        Ensures(
+          refinesProp(pool, head, list),
+          Res == None[E]())
+      )
+    )
+    if (n < 0 || n >= sizeOf) {
+      return None[E]()
+    }
+    Spec { length_bound(list) }
+    Deduce(
+      |- (refinesProp(pool, head, list)),
+      |- (list.length == sizeOf),
+      |- (sizeOf > 0))
+    var i: Z = n
+    var p: PoolPtr = head
+    Spec { refines_nth_head(pool, head, list) }
+    Deduce(
+      |- (list.length > 0),
+      |- (pool(p).elem == list.nth(n - i)))
+    @spec var l = list
+    while (i > 0) {
+      Invariant(
+        Modifies(i, p, l),
+        refinesProp(pool, p, l),
+        isValidPointer(pool, p),
+        0 <= i, i <= n, 0 <= n , n < list.length,
+        l.length == list.length - (n - i),
+        l.length > 0,
+        l == list.drop(n - i),
+        l.hd == pool(p).elem,
+        pool(p).elem == list.nth(n - i)
+      )
+      Spec {
+        refines_p_sublist(pool, p, l)
+        length_decr_tl(l)
+        drop_tl_other(l, list, n - i)
+      }
+      p = pool(p).right
+      Spec { l = l.tl }
+      i = i - 1
+      Spec {
+        refines_list_head(pool, p, l)
+        drop_hd_nth(list, n - i)
+      }
+    }
+    Deduce(|- (pool(p).elem== list.nth(n)))
+    return Some(pool(p).elem)
+  }
 
   def cons(elem: E): Unit = {
     Contract(Modifies(list),
@@ -1001,106 +1306,47 @@ import DLLPool._
     }
   }
 
-//  def update_nth(n: Z, elem: E): Unit = {
-//    if (n < 0) {
-//      // return
-//    } else {
-//      val p: Z = nthIndexR(n, head)
-//      if (p >= 0) {
-//        pool(p) match {
-//          // Unused node -- should not happen
-//          case Node(_, F, _, _) =>
-//          case Node(_, T, _, _) =>
-//            pool(p) = pool(p)(elem = elem)
-//        }
-//      }
-//    }
-//  }
+//            def rest(): Unit = {
+//              Contract(
+//                Requires(refinesProp(pool, head, list)), Modifies(list),
+//                Ensures(refinesProp(pool, head, list), list == In(list).tl)
+//              )
+//              if (!isEmpty) {
+//                Deduce(|- (isValidPointer(pool, head)))
+//                val r = pool(head).right
+//                if (r == Null) {
+//                  initPool()
+//                  head = Null
+//                  tail = Null
+//                } else {
+//                  Deduce(
+//                    |- (isValidPointer(pool, r)),
+//                    |- (pool(head).used),
+//                    |- (free == count_free(pool))
+//                  )
+//                  @spec val qool = pool
+//                  pool(head) = defaultNode
+//                  Deduce(
+//                    |- (poolRightUsedProp(pool))
+//                  )
+//                  Spec {
+//                    count_free_on_dealloc(qool, pool, head)
+//                  }
+//                  Deduce(
+//                    |- (free + 1 == count_free(pool))
+//                  )
+//                  @spec val rool = pool
+//                  pool(r) = pool(r)(left = Null)
+//                  Spec {
+//                    freeCoincidence(pool, rool)
+//                  }
+//                  head = r
+//                }
+//                free = free + 1
+//                Deduce(
+//                  |- (poolRightUsedProp(pool))
+//                )
+//              }
+//            }
 
-//  @pure def foreachR(f: ((E)) => Unit @pure, p: Z): Unit = {
-//    Contract(
-//      Requires(isPointer(pool, p))
-//    )
-//    if (isLeaf(p)) {
-//      //return
-//    } else {
-//      pool(p) match {
-//        // Unused node -- should not happen
-//        case Node(_, F, _, _) =>
-//        case Node(e, T, _, r) =>
-//          assume(isPointer(pool, r))
-//          f((e))
-//          foreachR(f, r)
-//      }
-//    }
-//  }
-//
-//  @pure def foreach(f: ((E)) => Unit @pure): Unit = {
-//    foreachR(f, head)
-//  }
-
-  // Rest, from head
-//  def rest(): Unit = {
-//    if (isEmpty) {
-//      // return
-//    } else {
-//      pool(head) match {
-//        // Unused node -- should not happen
-//        case Node(_, F, _, _) =>
-//        // Nothing to right
-//        case Node(_, T, _, r) =>
-//          assume(isPointer(pool, r))
-//          if (r == Null) {
-//            initPool()
-//            head = Null
-//            tail = Null
-//          } else {
-//            Deduce(
-//              |- (isValidPointer(pool, r)),
-//              |- (pool(head).used))
-//            pool(head) = defaultNode
-//            pool(r) = pool(r)(left = Null)
-//            head = r
-//          }
-//      }
-//    }
-//  }
-
-//  def deletIndex(p: Z): Unit = {
-//    Contract(
-//      Requires(isPointer(pool, p))
-//    )
-//    if (isLeaf(p)) {
-//      //return
-//    } else {
-//      assume(isPointer(pool, pool(p).left))
-//      assume(isPointer(pool, pool(p).right))
-//      pool(p) match {
-//        // Unused node -- should not happen
-//        case Node(_, F, _, _) =>
-//        // Found it, nothing to left and right
-//        case Node(_, T, l, r) if isLeaf(l) && isLeaf(r) =>
-//          if (sizeOf == 1) {
-//            initPool()
-//            head = Null
-//            tail = Null
-//          } else {
-//            // pathological case -- should not happen
-//            pool(p) = defaultNode
-//          }
-//        case Node(_, T, l, r) if isLeaf(l) =>
-//          pool(p) = defaultNode
-//          pool(r) = pool(r)(left = Null)
-//          if (head == p) { head = r }
-//        case Node(_, T, l, r) if isLeaf(r) =>
-//          pool(p) = defaultNode
-//          pool(l) = pool(l)(right = Null)
-//          if (tail == p) { tail = l }
-//        case Node(_, T, l, r) =>
-//          pool(p) = defaultNode
-//          pool(l) = pool(l)(right = r)
-//          pool(r) = pool(r)(left = l)
-//      }
-//    }
-//  }
 }
